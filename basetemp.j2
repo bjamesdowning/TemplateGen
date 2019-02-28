@@ -1,0 +1,59 @@
+!Current Configuration:
+!Software Capability "Stack Limit = 8, VLAN Limit = 1024"
+!Image File "N3000AdvLitev6.5.3.3"
+!System Description "Dell EMC Networking N3048EP-ON, 6.5.3.3, Linux 3.607, Not Available"
+!System Software Version 6.5.3.3
+!
+configure
+{% for vlan in vlans %}
+ vlan {{ vlan.id }}
+  name {{ vlan.name }}
+  exit
+{% endfor %}
+ip telnet server disable
+hostname {{ hostname }}
+{% for slot in range(switchcount) %}
+slot {{ slot + 1 }}/0 8    ! Dell EMC Networking N3048EP-ON
+{% endfor %}
+sntp unicast client enable
+{% for server in ntp %}
+sntp server {{ server }}
+{% endfor %}
+clock summer-time recurring USA
+clock timezone -5 minutes 0
+stack
+{% for stack in range(switchcount) %}
+member {{ stack + 1 }} 6    ! N3048EP-ON
+{% endfor %}
+exit
+ip domain-name {{ domain }}
+{% for server in dns %}
+ip name-server {{ server }}
+{% endfor %}
+{% for server in logging %}
+logging {{ server }}
+exit
+{% endfor %}
+no ip http server
+ip http secure-server
+ip routing
+interface vlan 1
+exit
+interface vlan 252
+    ip address {{ mgmt_IP }} /24
+    exit
+{% for interface in interfaces %}
+ interface {{ interface.name }}
+   desc {{ interface.desc }}
+   {% if interface.uplink %}
+   switchport mode trunk
+   switchport trunk allowed vlan {{ interface.vlanList }}
+   {% else %} 
+   switchport mode access
+   switchport access vlan {{ interface.dataVlan }}
+   switchport voice vlan {{ interface.voiceVlan }}
+   {% endif %}
+{% endfor %}
+
+
+
