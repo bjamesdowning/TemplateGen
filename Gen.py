@@ -13,7 +13,7 @@ import yaml, os, fnmatch
 def findFiles():
         #Gather list of files with .yaml
         files = []
-        for p,d,fs in os.walk('.'):
+        for _,_,fs in os.walk('.'):
                 for f in fs:
                         if fnmatch.fnmatch(f, '*.yaml'):
                                 files.append(f)
