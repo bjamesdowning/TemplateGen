@@ -1,35 +1,57 @@
 ---
-hostname: host1
+hostname: '"host1"'
 switchcount: 5
 vlans:
   - id: 100
     name: DATA
+    stp: 61440
   - id: 200
     name: VOICE
+    stp: 61440
   - id: 300
     name: MGMT
+    stp: 61440
   - id: 400
     name: DOT1X
+    stp: 61440
+dataVlan: 100
+voiceVlan: 200
 ntp:
   - 10.0.0.1
   - 10.0.0.2
-domain: lhn.local
-defaultRoute:
-  - 10.0.10.1
+domain: '"lhn.local"'
+defaultRoute: 10.0.10.1
 dns:
-  - 10.0.20.1
-  - 10.0.30.1
+  - '"10.0.20.1"'
+  - '"10.0.30.1"'
 logging:
   - 10.0.40.1
   - 10.0.40.2
 mgmt_IP: 10.0.50.1
+username: "'admin'"
+password: 
+  - user: password
+  - enable: password
+tacacs:
+  server: 10.0.50.1
+  key: testkey
+stp:
+  - mode: rapid-pvst
+snmp:
+  - ro: '"Read-Only"'
+  - rw: '"Read-Write"'
+aaa:
+  - profile: TestProf
+  - timeout: 15
 interfaces:
   - name: GigabitEthernet1/1/1
     desc: '"802.1q >> Uplink"'
     uplink: True
-    vlanList: 1001,2001
   - name: GigabitEthernet1/1/2
-    desc: Voice and Data
-    dataVlan: hostname
-    voiceVlan: 200
-
+    desc: '"Voice and Data"'
+    uplink: False
+  - name: GigabitEthernet1/1/2
+    desc: '"Voice and Data"'
+    uplink: False
+    dataVlan2: 150
+    voiceVlan2: 250

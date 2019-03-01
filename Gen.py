@@ -45,11 +45,12 @@ def tempBuild(ymlFiles, OS, IP):
                         config = yaml.load(yml)
                         output = template.render(config)
                         createFile(output, fileName, OS, IP)
-
+#Main function
 if __name__ == '__main__':
         print("Scanning local dir for .yaml files")
         ymlFiles = findFiles()
         print("Files found. Loading yaml, creating templates")
+        #Needed attributes for .setup file
         OS = input("OS Image Name: ")
         IP = input("MGMT IP: ")
         tempBuild(ymlFiles, OS, IP)

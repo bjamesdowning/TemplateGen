@@ -5,35 +5,38 @@
 !System Software Version 6.5.3.3
 !
 configure
-{% for vlan in vlans %}
+vlan {% for vlan in vlans -%} {{ vlan.id }}, {%- endfor %}
+exit
+{% for vlan in vlans -%}
  vlan {{ vlan.id }}
   name {{ vlan.name }}
   exit
-{% endfor %}
+{% endfor -%}
 ip telnet server disable
 hostname {{ hostname }}
-{% for slot in range(switchcount) %}
+{%- for slot in range(switchcount) %}
 slot {{ slot + 1 }}/0 8    ! Dell EMC Networking N3048EP-ON
-{% endfor %}
+{%- endfor %}
 sntp unicast client enable
-{% for server in ntp %}
+{% for server in ntp -%}
 sntp server {{ server }}
-{% endfor %}
+{% endfor -%}
 clock summer-time recurring USA
 clock timezone -5 minutes 0
 stack
-{% for stack in range(switchcount) %}
+{%- for stack in range(switchcount) %}
 member {{ stack + 1 }} 6    ! N3048EP-ON
-{% endfor %}
+{%- endfor %}
 exit
 ip domain-name {{ domain }}
-{% for server in dns %}
+{% for server in dns -%}
 ip name-server {{ server }}
-{% endfor %}
-{% for server in logging %}
+{% endfor -%}
+!
+{%- for server in logging %}
 logging {{ server }}
 exit
-{% endfor %}
+{%- endfor %}
 no ip http server
 ip http secure-server
 ip routing
@@ -42,17 +45,74 @@ exit
 interface vlan 252
     ip address {{ mgmt_IP }} /24
     exit
-{% for interface in interfaces %}
+ip route 0.0.0.0 0.0.0.0 {{ defaultRoute }}
+username {{ username }} password {{ password.user }} privilege 15 encrypted
+username "SupportAssist" password {{ password.user }} privilege 15 encrypted
+aaa authentication login "{{ aaa.profile }}" tacacs local enable
+aaa authentication enable "{{ aaa.profile }}" tacacs enable
+aaa accounting exec "{{ aaa.profile }}" start-stop tacacs
+aaa accounting commands "{{ aaa.profile }}" start-stop tacacs
+aaa authorization exec "{{ aaa.profile }}" tacacs local
+aaa authorization commands "{{ aaa.profile }}" tacacs none
+switchport voice vlan
+tacacs-server host {{ tacacs.server }}
+key {{ tacacs.key }}
+exit
+line telnet
+exec-timeout {{ aaa.timeout }}
+login authentication {{ aaa.profile }}
+exit
+line ssh
+exec-timeout {{ aaa.timeout }}
+login authentication {{ aaa.profile }}
+exit
+ip ssh server
+spanning-tree mode {{ stp.mode }}
+{%- for vlan in vlans %}
+spanning-tree vlan {{ vlan.id }} priority {{ vlan.stp }}
+{%- endfor %}
+classofservice trust ip-dscp
+cos-queue strict 2
+application install SupportAssist auto-restart start-on-boot
+application install hiveagent start-on-boot
+snmp-server engineid local 800002a20328f10ef05e00
+!
+snmp-server community "SupportAssistSNMP" ro
+snmp-server community {{ snmp.ro }} ro
+snmp-server community {{ snmp.rw }} rw
+enable password {{ password.enable }} encrypted
+banner motd "
+**********************************************************
+*                                                        *
+*                        WARNING                         *
+*                                                        *
+*  This is a private device and can only be accessed by  *
+*    authorized personnel. Use of this resource can be   *
+* monitored and unauthorized use is strictly prohibited. *
+*                                                        *
+**********************************************************
+"
+exit
+{% for interface in interfaces -%}
  interface {{ interface.name }}
    desc {{ interface.desc }}
-   {% if interface.uplink %}
+   {% if interface.uplink -%}
    switchport mode trunk
-   switchport trunk allowed vlan {{ interface.vlanList }}
-   {% else %} 
+   switchport trunk allowed vlan {% for vlan in vlans -%} {{ vlan.id }}, {%- endfor %}
+   {% else -%} 
    switchport mode access
-   switchport access vlan {{ interface.dataVlan }}
-   switchport voice vlan {{ interface.voiceVlan }}
+   {% if interface.dataVlan2 -%}
+   switchport access vlan {{ interface.dataVlan2 }}
+   {%- else -%}
+   switchport access vlan {{ dataVlan }}
    {% endif %}
+   {%- if interface.voiceVlan2 -%}
+   switchport voice vlan {{ interface.voiceVlan2 }}
+   {%- else -%}
+   switchport voice vlan {{ voiceVlan }}
+   {% endif -%}
+   exit
+   {% endif -%}
 {% endfor %}
 
 
