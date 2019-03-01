@@ -21,10 +21,15 @@ def findFiles():
 
 def createFile(output, fileName):
         fname = os.path.splitext(fileName)[0]
+        rootDir = os.getcwd()
+        newDir = os.getcwd()+'\\'+fname
+        os.mkdir(newDir)
+        os.chdir(newDir)
         with open(fname, 'w+') as f:
                 f.write(output)
                 f.close()   
                 f = os.rename(fname, fname+'.text')
+        os.chdir(rootDir)
 
 #Run list of yaml files through template engine
 def tempBuild(ymlFiles):
