@@ -19,7 +19,7 @@ def findFiles():
                                 files.append(f)
         return files
 
-def createFile(output, fileName):
+def createFile(output, fileName, OS, IP):
         fname = os.path.splitext(fileName)[0]
         rootDir = os.getcwd()
         newDir = os.getcwd()+'\\'+fname
@@ -29,10 +29,13 @@ def createFile(output, fileName):
                 f.write(output)
                 f.close()   
                 f = os.rename(fname, fname+'.text')
+        with open("config.setup", 'w+') as s:
+                s.write(IP+" "+fname+".text"+" "+OS)
+                s.close()
         os.chdir(rootDir)
 
 #Run list of yaml files through template engine
-def tempBuild(ymlFiles):
+def tempBuild(ymlFiles, OS, IP):
         #Build vars for template engine
         ENV = Environment(loader=FileSystemLoader('.'))
         template = ENV.get_template("basetemp.j2")
@@ -41,12 +44,14 @@ def tempBuild(ymlFiles):
                 with open(fileName) as yml:
                         config = yaml.load(yml)
                         output = template.render(config)
-                        createFile(output, fileName)
+                        createFile(output, fileName, OS, IP)
 
 if __name__ == '__main__':
         print("Scanning local dir for .yaml files")
         ymlFiles = findFiles()
         print("Files found. Loading yaml, creating templates")
-        tempBuild(ymlFiles)
+        OS = input("OS Image Name: ")
+        IP = input("MGMT IP: ")
+        tempBuild(ymlFiles, OS, IP)
         print("Templates created.")
 
