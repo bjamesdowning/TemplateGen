@@ -55,9 +55,11 @@ aaa accounting commands "{{ aaa.profile }}" start-stop tacacs
 aaa authorization exec "{{ aaa.profile }}" tacacs local
 aaa authorization commands "{{ aaa.profile }}" tacacs none
 switchport voice vlan
-tacacs-server host {{ tacacs.server }}
+tacacs-server host {{ tacacs.server1 }}
 key {{ tacacs.key }}
 exit
+tacacs-server host {{ tacacs.server2 }}
+key {{ tacacs.key }}
 line telnet
 exec-timeout {{ aaa.timeout }}
 login authentication {{ aaa.profile }}
@@ -96,30 +98,34 @@ exit
 {% for interface in interfaces -%}
 interface {{ interface.name }}
   desc {{ interface.desc }}
-  {% if interface.uplink -%}
+  {% if interface.trunk -%}
   switchport mode trunk
   {% if "Port-Channel" in interface.name -%}   
   switchport trunk allowed vlan {% for vlan in vlans -%} {{ vlan.id }}, {%- endfor %}
   no spanning-tree auto-portfast
   no shutdown
   exit
+  !
   {%- else -%}   
   channel-group {{ interface.lacp }} mode active
   exit
+  !
   {% endif -%}
-  {% else -%}
+  {% elif interface.general -%}
   no green-mode eee 
   switchport mode general
   {% if interface.dataVlan2 -%}
   switchport general pvid {{ interface.dataVlan2 }}
-  switchport general allowed vlan add {{ interface.dataVLan2 }} untagged
-  {%- else -%}
+  switchport general allowed vlan add {{ interface.dataVlan2 }} untagged
+  {% else -%}
   switchport general pvid {{ dataVlan }}
   switchport general allowed vlan add {{ dataVlan }} untagged
-  {% endif %}
-  {%- if interface.voiceVlan2 -%}
+  {% endif -%}
+  {% if interface.voiceVlan2 -%}
+  switchport general allowed vlan add {{ interface.voiceVlan2 }} tagged
   switchport voice vlan {{ interface.voiceVlan2 }}
-  {%- else -%}
+  {% else -%}
+  switchport general allowed vlan add {{ voiceVlan }} tagged
   switchport voice vlan {{ voiceVlan }}
   {% endif -%}
   switchport voice vlan priority extend trust
@@ -132,6 +138,35 @@ interface {{ interface.name }}
   spanning-tree portfast
   no shutdown
   exit
+  !
+  {% elif interface.access -%}
+  switchport mode access
+  no green-mode eee
+  {% if interface.data -%}
+  switchport access vlan {{ dataVlan }}
+  spanning-tree portfast
+  no shutdown
+  exit
+  !
+  {%- elif interface.voice -%}
+  switchport access vlan {{ voiceVlan }}
+  spanning-tree portfast
+  no shutdown
+  exit
+  !
+  {%- elif interface.dataVlan2 -%}
+  switchport access vlan {{ interface.dataVlan2 }}
+  spanning-tree portfast
+  no shutdown
+  exit
+  !
+  {%- elif interface.voiceVlan2 -%}
+  switchport access vlan {{ interface.voiceVlan2 }}
+  spanning-tree portfast
+  no shutdown
+  exit
+  !
+  {%- endif %}
   {% endif -%}
 {% endfor %}
 
