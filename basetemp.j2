@@ -1,3 +1,56 @@
+{#
+
+Template for Dell OS6
+
+Interface Examples:
+
+Channel-Grouped interface
+  - name: GigabitEthernet1/1/1
+    desc: '"802.1q >> Uplink"'
+    trunk: True
+    lacp: 1
+Wireless Inteface (specific set if tagged vlans)
+  - name: GigabitEthernet1/1/3
+    desc: '"wireless"'
+    general: True
+    dataVlan2: 777
+    tagged:
+      - 100
+      - 200
+  Mode General With other-than-default voice/data VLANs
+  - name: GigabitEthernet1/1/4
+    desc: '"Voice PBX and Data"'
+    general: True
+    dataVlan2: 150
+    voiceVlan2: 250
+  Access port with default data vlan
+  - name: GigabitEthernet1/1/3
+    desc: '"Voice and Data"'
+    access: True
+    data: True
+    voice: False
+  Access port with non default data vlan
+  - name: GigabitEthernet1/1/3
+    desc: '"Voice and Data"'
+    access: True
+    dataVlan2: 999
+  Access port with non default voice vlan
+  - name: GigabitEthernet1/1/3
+    desc: '"Voice and Data"'
+    access: True
+    voiceVlan2: 666
+  Port-Channel with specific tags
+  - name: Port-Channel 1
+    desc: '"802.1q >> Uplink"'
+    trunk: True
+    tagged:
+      - 777
+      - 999
+      - 1002
+      - 1002
+
+#}
+
 !Current Configuration:
 !Software Capability "Stack Limit = 8, VLAN Limit = 1024"
 !Image File "N3000AdvLitev6.5.3.3"
@@ -77,8 +130,102 @@ classofservice trust ip-dscp
 cos-queue strict 2
 application install SupportAssist auto-restart start-on-boot
 application install hiveagent start-on-boot
+!
+{% for interface in interfaces -%}
+interface {{ interface.name }}
+desc {{ interface.desc }}
+{% if interface.trunk -%}
+switchport mode trunk
+{% if "Port-Channel" in interface.name -%}   
+switchport trunk allowed vlan {% for vlan in interface.tagged -%} {{ vlan }}, {%- endfor %}
+no spanning-tree auto-portfast
+no shutdown
+exit
+!
+{%- else -%}   
+channel-group {{ interface.lacp }} mode active
+exit
+!
+{% endif -%}
+{% elif interface.general -%}
+no green-mode eee 
+switchport mode general
+{% if interface.dataVlan2 -%}
+switchport general pvid {{ interface.dataVlan2 }}
+switchport general allowed vlan add {{ interface.dataVlan2 }} untagged
+{% else -%}
+switchport general pvid {{ dataVlan }}
+switchport general allowed vlan add {{ dataVlan }} untagged
+{% endif -%}
+{% if interface.voiceVlan2 -%}
+switchport general allowed vlan add {{ interface.voiceVlan2 }} tagged
+switchport voice vlan {{ interface.voiceVlan2 }}
+switchport voice vlan priority extend trust
+switchport voice vlan dscp 46
+switchport voice vlan override-authentication
+no lldp tlv-select port-vlan
+lldp tlv-select management-address system-description system-capabilities
+lldp notification
+lldp med confignotification
+spanning-tree portfast
+no shutdown
+exit
+!
+{% elif "wireless" in interface.desc -%}
+switchport general allowed vlan add {% for vlan in interface.tagged -%} {{ vlan }}, {%- endfor %} tagged
+spanning-tree portfast
+no shutdown
+exit
+!
+{% else -%}
+switchport general allowed vlan add {{ voiceVlan }} tagged
+switchport voice vlan {{ voiceVlan }}
+switchport voice vlan priority extend trust
+switchport voice vlan dscp 46
+switchport voice vlan override-authentication
+no lldp tlv-select port-vlan
+lldp tlv-select management-address system-description system-capabilities
+lldp notification
+lldp med confignotification
+spanning-tree portfast
+no shutdown
+exit
+!
+{% endif -%}
+{% elif interface.access -%}
+switchport mode access
+no green-mode eee
+{% if interface.data -%}
+switchport access vlan {{ dataVlan }}
+spanning-tree portfast
+no shutdown
+exit
+!
+{%- elif interface.voice -%}
+switchport access vlan {{ voiceVlan }}
+spanning-tree portfast
+no shutdown
+exit
+!
+{%- elif interface.dataVlan2 -%}
+switchport access vlan {{ interface.dataVlan2 }}
+spanning-tree portfast
+no shutdown
+exit
+!
+{%- elif interface.voiceVlan2 -%}
+switchport access vlan {{ interface.voiceVlan2 }}
+spanning-tree portfast
+no shutdown
+exit
+!
+{%- endif %}
+{% endif -%}
+{% endfor -%}
 snmp-server engineid local 800002a20328f10ef05e00
 !
+snmp-server group "{{ snmp.group }}" v3 priv read
+snmp-server user "{{ snmp.user }}" {{ snmp.group }} auth-sha {{ snmp.auth }} prive-aes128 {{ snmp.priv }}
 snmp-server community "SupportAssistSNMP" ro
 snmp-server community {{ snmp.ro }} ro
 snmp-server community {{ snmp.rw }} rw
@@ -95,80 +242,7 @@ banner motd "
 **********************************************************
 "
 exit
-{% for interface in interfaces -%}
-interface {{ interface.name }}
-  desc {{ interface.desc }}
-  {% if interface.trunk -%}
-  switchport mode trunk
-  {% if "Port-Channel" in interface.name -%}   
-  switchport trunk allowed vlan {% for vlan in vlans -%} {{ vlan.id }}, {%- endfor %}
-  no spanning-tree auto-portfast
-  no shutdown
-  exit
-  !
-  {%- else -%}   
-  channel-group {{ interface.lacp }} mode active
-  exit
-  !
-  {% endif -%}
-  {% elif interface.general -%}
-  no green-mode eee 
-  switchport mode general
-  {% if interface.dataVlan2 -%}
-  switchport general pvid {{ interface.dataVlan2 }}
-  switchport general allowed vlan add {{ interface.dataVlan2 }} untagged
-  {% else -%}
-  switchport general pvid {{ dataVlan }}
-  switchport general allowed vlan add {{ dataVlan }} untagged
-  {% endif -%}
-  {% if interface.voiceVlan2 -%}
-  switchport general allowed vlan add {{ interface.voiceVlan2 }} tagged
-  switchport voice vlan {{ interface.voiceVlan2 }}
-  {% else -%}
-  switchport general allowed vlan add {{ voiceVlan }} tagged
-  switchport voice vlan {{ voiceVlan }}
-  {% endif -%}
-  switchport voice vlan priority extend trust
-  switchport voice vlan dscp 46
-  switchport voice vlan override-authentication
-  no lldp tlv-select port-vlan
-  lldp tlv-select management-address system-description system-capabilities
-  lldp notification
-  lldp med confignotification
-  spanning-tree portfast
-  no shutdown
-  exit
-  !
-  {% elif interface.access -%}
-  switchport mode access
-  no green-mode eee
-  {% if interface.data -%}
-  switchport access vlan {{ dataVlan }}
-  spanning-tree portfast
-  no shutdown
-  exit
-  !
-  {%- elif interface.voice -%}
-  switchport access vlan {{ voiceVlan }}
-  spanning-tree portfast
-  no shutdown
-  exit
-  !
-  {%- elif interface.dataVlan2 -%}
-  switchport access vlan {{ interface.dataVlan2 }}
-  spanning-tree portfast
-  no shutdown
-  exit
-  !
-  {%- elif interface.voiceVlan2 -%}
-  switchport access vlan {{ interface.voiceVlan2 }}
-  spanning-tree portfast
-  no shutdown
-  exit
-  !
-  {%- endif %}
-  {% endif -%}
-{% endfor %}
+
 
 
 

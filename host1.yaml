@@ -53,8 +53,15 @@ interfaces:
     trunk: True
     lacp: 1
   - name: GigabitEthernet1/1/3
-    desc: '"Voice and Data"'
+    desc: '"wireless"'
     general: True
+    dataVlan2: 777
+    tagged:
+      - 100
+      - 200
+      - 300
+      - 400
+      - 500
   - name: GigabitEthernet1/1/4
     desc: '"Voice PBX and Data"'
     general: True
@@ -81,3 +88,8 @@ interfaces:
   - name: Port-Channel 1
     desc: '"802.1q >> Uplink"'
     trunk: True
+    tagged:
+      - 777
+      - 999
+      - 1002
+      - 1002
