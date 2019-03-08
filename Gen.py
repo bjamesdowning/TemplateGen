@@ -35,10 +35,10 @@ def createFile(output, fileName, OS, IP):
         os.chdir(rootDir)
 
 #Run list of yaml files through template engine
-def tempBuild(ymlFiles, OS, IP):
+def tempBuild(ymlFiles, OS, IP, tmplt):
         #Build vars for template engine
         ENV = Environment(loader=FileSystemLoader('.'))
-        template = ENV.get_template("basetemp.j2")
+        template = ENV.get_template(tmplt)
         for y in range(len(ymlFiles)):
                 fileName = ymlFiles[y]
                 with open(fileName) as yml:
@@ -53,6 +53,7 @@ if __name__ == '__main__':
         #Needed attributes for .setup file
         OS = input("OS Image Name: ")
         IP = input("MGMT IP: ")
-        tempBuild(ymlFiles, OS, IP)
+        tmplt = input("Template: ")
+        tempBuild(ymlFiles, OS, IP, tmplt)
         print("Templates created.")
 

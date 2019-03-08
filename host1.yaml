@@ -28,33 +28,41 @@ logging:
   - 10.0.40.1
   - 10.0.40.2
 mgmt_IP: 10.0.50.1
-username: "'admin'"
-password: 
-  - user: password
-  - enable: password
+users:
+  - username: admin
+    password: password
+  - username: Support
+    password: support
+enablePass: password
 tacacs:
   server: 10.0.50.1
   key: testkey
 stp:
-  - mode: rapid-pvst
+  mode: rapid-pvst
 snmp:
-  - ro: '"Read-Only"'
-  - rw: '"Read-Write"'
+  ro: '"Read-Only"'
+  rw: '"Read-Write"'
+  group: GROUP
+  user: RO 
+  auth: authpass 
+  priv: privpass
 aaa:
-  - profile: TestProf
-  - timeout: 15
+  profile: TestProf
+  timeout: 15
+  method1: tacacs
+  method2: local
 interfaces:
   - name: GigabitEthernet1/1/1
     desc: '"802.1q >> Uplink"'
-    trunk: True
+    mode: trunk
     lacp: 1
   - name: GigabitEthernet1/1/2
     desc: '"802.1q >> Uplink"'
-    trunk: True
+    mode: trunk
     lacp: 1
   - name: GigabitEthernet1/1/3
     desc: '"wireless"'
-    general: True
+    mode: general
     dataVlan2: 777
     tagged:
       - 100
@@ -64,30 +72,30 @@ interfaces:
       - 500
   - name: GigabitEthernet1/1/4
     desc: '"Voice PBX and Data"'
-    general: True
+    mode: general
     dataVlan2: 150
     voiceVlan2: 250
   - name: GigabitEthernet1/1/3
     desc: '"Voice and Data"'
-    access: True
+    mode: access
     data: True
     voice: False
   - name: GigabitEthernet1/1/3
     desc: '"Voice and Data"'
-    access: True
+    mode: access
     data: False
     voice: True
   - name: GigabitEthernet1/1/3
     desc: '"Voice and Data"'
-    access: True
+    mode: access
     dataVlan2: 999
   - name: GigabitEthernet1/1/3
     desc: '"Voice and Data"'
-    access: True
+    mode: access
     voiceVlan2: 666
   - name: Port-Channel 1
     desc: '"802.1q >> Uplink"'
-    trunk: True
+    mode: trunk
     tagged:
       - 777
       - 999
