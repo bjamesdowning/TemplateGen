@@ -4,15 +4,15 @@ Template for Dell OS6
 
 Interface Examples:
 
-Channel-Grouped interface
+LACP interface
   - name: GigabitEthernet1/1/1
     desc: '"802.1q >> Uplink"'
-    trunk: True
+    mode: trunk
     lacp: 1
 Wireless Inteface (specific set if tagged vlans)
   - name: GigabitEthernet1/1/3
     desc: '"wireless"'
-    general: True
+    mode: general
     dataVlan2: 777
     tagged:
       - 100
@@ -20,29 +20,29 @@ Wireless Inteface (specific set if tagged vlans)
   Mode General With other-than-default voice/data VLANs
   - name: GigabitEthernet1/1/4
     desc: '"Voice PBX and Data"'
-    general: True
+    mode: general
     dataVlan2: 150
     voiceVlan2: 250
   Access port with default data vlan
   - name: GigabitEthernet1/1/3
     desc: '"Voice and Data"'
-    access: True
+    mode: access
     data: True
     voice: False
   Access port with non default data vlan
   - name: GigabitEthernet1/1/3
     desc: '"Voice and Data"'
-    access: True
+    mode: access
     dataVlan2: 999
   Access port with non default voice vlan
   - name: GigabitEthernet1/1/3
     desc: '"Voice and Data"'
-    access: True
+    mode: access
     voiceVlan2: 666
   Port-Channel with specific tags
   - name: Port-Channel 1
     desc: '"802.1q >> Uplink"'
-    trunk: True
+    mode: trunk
     tagged:
       - 777
       - 999
