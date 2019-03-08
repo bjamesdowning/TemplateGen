@@ -50,7 +50,6 @@ if __name__ == '__main__':
         print("Scanning local dir for .yaml files")
         ymlFiles = findFiles()
         print("Files found. Loading yaml, creating templates")
-        #Needed attributes for .setup file
         OS = input("OS Image Name: ")
         IP = input("MGMT IP: ")
         tmplt = input("Template: ")
