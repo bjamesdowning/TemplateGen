@@ -1,0 +1,250 @@
+{#
+
+Template for Dell OS6
+
+Interface Examples:
+
+Channel-Grouped interface
+  - name: GigabitEthernet1/1/1
+    desc: '"802.1q >> Uplink"'
+    trunk: True
+    lacp: 1
+Wireless Inteface (specific set if tagged vlans)
+  - name: GigabitEthernet1/1/3
+    desc: '"wireless"'
+    general: True
+    dataVlan2: 777
+    tagged:
+      - 100
+      - 200
+  Mode General With other-than-default voice/data VLANs
+  - name: GigabitEthernet1/1/4
+    desc: '"Voice PBX and Data"'
+    general: True
+    dataVlan2: 150
+    voiceVlan2: 250
+  Access port with default data vlan
+  - name: GigabitEthernet1/1/3
+    desc: '"Voice and Data"'
+    access: True
+    data: True
+    voice: False
+  Access port with non default data vlan
+  - name: GigabitEthernet1/1/3
+    desc: '"Voice and Data"'
+    access: True
+    dataVlan2: 999
+  Access port with non default voice vlan
+  - name: GigabitEthernet1/1/3
+    desc: '"Voice and Data"'
+    access: True
+    voiceVlan2: 666
+  Port-Channel with specific tags
+  - name: Port-Channel 1
+    desc: '"802.1q >> Uplink"'
+    trunk: True
+    tagged:
+      - 777
+      - 999
+      - 1002
+      - 1002
+
+#}
+
+!Current Configuration:
+!Software Capability "Stack Limit = 8, VLAN Limit = 1024"
+!Image File "N3000AdvLitev6.5.3.3"
+!System Description "Dell EMC Networking N3048EP-ON, 6.5.3.3, Linux 3.607, Not Available"
+!System Software Version 6.5.3.3
+!
+configure
+vlan {% for vlan in vlans -%} {{ vlan.id }}, {%- endfor %}
+exit
+{% for vlan in vlans -%}
+ vlan {{ vlan.id }}
+  name {{ vlan.name }}
+  exit
+{% endfor -%}
+ip telnet server disable
+hostname {{ hostname }}
+{%- for slot in range(switchcount) %}
+slot {{ slot + 1 }}/0 8    ! Dell EMC Networking N3048EP-ON
+{%- endfor %}
+sntp unicast client enable
+{% for server in ntp -%}
+sntp server {{ server }}
+{% endfor -%}
+clock summer-time recurring USA
+clock timezone -5 minutes 0
+stack
+{%- for stack in range(switchcount) %}
+member {{ stack + 1 }} 6    ! N3048EP-ON
+{%- endfor %}
+exit
+ip domain-name {{ domain }}
+{% for server in dns -%}
+ip name-server {{ server }}
+{% endfor -%}
+!
+{%- for server in logging %}
+logging {{ server }}
+exit
+{%- endfor %}
+no ip http server
+ip http secure-server
+ip routing
+interface vlan 1
+exit
+interface vlan 252
+    ip address {{ mgmt_IP }} /24
+    exit
+ip route 0.0.0.0 0.0.0.0 {{ defaultRoute }}
+{%- for user in users %}
+username {{ user.username }} password {{ user.password }} privilege 15 encrypted
+{%- endfor %}
+aaa authentication login "{{ aaa.profile }}" {{ aaa.method1 }} {{ aaa.method2 }} enable
+aaa authentication enable "{{ aaa.profile }}" {{ aaa.method1 }} enable
+aaa accounting exec "{{ aaa.profile }}" start-stop {{ aaa.method1 }}
+aaa accounting commands "{{ aaa.profile }}" start-stop {{ aaa.method1 }}
+aaa authorization exec "{{ aaa.profile }}" {{ aaa.method1 }} {{ aaa.method2 }}
+aaa authorization commands "{{ aaa.profile }}" {{ aaa.method1 }} none
+switchport voice vlan
+tacacs-server host {{ tacacs.server1 }}
+key {{ tacacs.key }}
+exit
+tacacs-server host {{ tacacs.server2 }}
+key {{ tacacs.key }}
+exit
+line telnet
+exec-timeout {{ aaa.timeout }}
+login authentication {{ aaa.profile }}
+exit
+line ssh
+exec-timeout {{ aaa.timeout }}
+login authentication {{ aaa.profile }}
+exit
+ip ssh server
+spanning-tree mode {{ stp.mode }}
+{%- for vlan in vlans %}
+spanning-tree vlan {{ vlan.id }} priority {{ vlan.stp }}
+{%- endfor %}
+classofservice trust ip-dscp
+cos-queue strict 2
+application install SupportAssist auto-restart start-on-boot
+application install hiveagent start-on-boot
+!
+{% for interface in interfaces -%}
+interface {{ interface.name }}
+desc {{ interface.desc }}
+{% if "trunk" in interface.mode -%}
+switchport mode trunk
+{% if "Port-Channel" in interface.name -%}   
+switchport trunk allowed vlan {% for vlan in interface.tagged -%} {{ vlan }}, {%- endfor %}
+no spanning-tree auto-portfast
+no shutdown
+exit
+!
+{%- else -%}   
+channel-group {{ interface.lacp }} mode active
+exit
+!
+{% endif -%}
+{% elif "general" in interface.mode -%}
+no green-mode eee 
+switchport mode general
+{% if interface.dataVlan2 -%}
+switchport general pvid {{ interface.dataVlan2 }}
+switchport general allowed vlan add {{ interface.dataVlan2 }} untagged
+{% else -%}
+switchport general pvid {{ dataVlan }}
+switchport general allowed vlan add {{ dataVlan }} untagged
+{% endif -%}
+{% if interface.voiceVlan2 -%}
+switchport general allowed vlan add {{ interface.voiceVlan2 }} tagged
+switchport voice vlan {{ interface.voiceVlan2 }}
+switchport voice vlan priority extend trust
+switchport voice vlan dscp 46
+switchport voice vlan override-authentication
+no lldp tlv-select port-vlan
+lldp tlv-select management-address system-description system-capabilities
+lldp notification
+lldp med confignotification
+spanning-tree portfast
+no shutdown
+exit
+!
+{% elif "wireless" in interface.desc -%}
+switchport general allowed vlan add {% for vlan in interface.tagged -%} {{ vlan }}, {%- endfor %} tagged
+spanning-tree portfast
+no shutdown
+exit
+!
+{% else -%}
+switchport general allowed vlan add {{ voiceVlan }} tagged
+switchport voice vlan {{ voiceVlan }}
+switchport voice vlan priority extend trust
+switchport voice vlan dscp 46
+switchport voice vlan override-authentication
+no lldp tlv-select port-vlan
+lldp tlv-select management-address system-description system-capabilities
+lldp notification
+lldp med confignotification
+spanning-tree portfast
+no shutdown
+exit
+!
+{% endif -%}
+{% elif "access" in interface.mode -%}
+switchport mode access
+no green-mode eee
+{% if interface.data -%}
+switchport access vlan {{ dataVlan }}
+spanning-tree portfast
+no shutdown
+exit
+!
+{%- elif interface.voice -%}
+switchport access vlan {{ voiceVlan }}
+spanning-tree portfast
+no shutdown
+exit
+!
+{%- elif interface.dataVlan2 -%}
+switchport access vlan {{ interface.dataVlan2 }}
+spanning-tree portfast
+no shutdown
+exit
+!
+{%- elif interface.voiceVlan2 -%}
+switchport access vlan {{ interface.voiceVlan2 }}
+spanning-tree portfast
+no shutdown
+exit
+!
+{%- endif %}
+{% endif -%}
+{% endfor -%}
+snmp-server engineid local 800002a20328f10ef05e00
+!
+snmp-server group "{{ snmp.group }}" v3 priv read
+snmp-server user "{{ snmp.user }}" {{ snmp.group }} auth-sha {{ snmp.auth }} prive-aes128 {{ snmp.priv }}
+snmp-server community "SupportAssistSNMP" ro
+snmp-server community {{ snmp.ro }} ro
+snmp-server community {{ snmp.rw }} rw
+enable password {{ enablePass }} encrypted
+banner motd "
+**********************************************************
+*                                                        *
+*                        WARNING                         *
+*                                                        *
+*  This is a private device and can only be accessed by  *
+*    authorized personnel. Use of this resource can be   *
+* monitored and unauthorized use is strictly prohibited. *
+*                                                        *
+**********************************************************
+"
+exit
+
+
+
+
