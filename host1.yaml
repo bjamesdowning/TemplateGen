@@ -19,7 +19,7 @@ voiceVlan: 200
 ntp:
   - 10.0.0.1
   - 10.0.0.2
-domain: '"lhn.local"'
+domain: '"lab.local"'
 defaultRoute: 10.0.10.1
 dns:
   - '"10.0.20.1"'
