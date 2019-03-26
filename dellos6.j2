@@ -2,63 +2,16 @@
 
 Template for Dell OS6
 
-Interface Examples:
-
-LACP interface
-  - name: GigabitEthernet1/1/1
-    desc: '"802.1q >> Uplink"'
-    mode: trunk
-    lacp: 1
-Wireless Inteface (specific set if tagged vlans)
-  - name: GigabitEthernet1/1/3
-    desc: '"wireless"'
-    mode: general
-    dataVlan2: 777
-    tagged:
-      - 100
-      - 200
-  Mode General With other-than-default voice/data VLANs
-  - name: GigabitEthernet1/1/4
-    desc: '"Voice PBX and Data"'
-    mode: general
-    dataVlan2: 150
-    voiceVlan2: 250
-  Access port with default data vlan
-  - name: GigabitEthernet1/1/3
-    desc: '"Voice and Data"'
-    mode: access
-    data: True
-    voice: False
-  Access port with non default data vlan
-  - name: GigabitEthernet1/1/3
-    desc: '"Voice and Data"'
-    mode: access
-    dataVlan2: 999
-  Access port with non default voice vlan
-  - name: GigabitEthernet1/1/3
-    desc: '"Voice and Data"'
-    mode: access
-    voiceVlan2: 666
-  Port-Channel with specific tags
-  - name: Port-Channel 1
-    desc: '"802.1q >> Uplink"'
-    mode: trunk
-    tagged:
-      - 777
-      - 999
-      - 1002
-      - 1002
-
 #}
 
 !Current Configuration:
 !Software Capability "Stack Limit = 8, VLAN Limit = 1024"
 !Image File "N3000AdvLitev6.5.3.3"
-!System Description "Dell EMC Networking N3048EP-ON, 6.5.3.3, Linux 3.607, Not Available"
+!System Description "Dell EMC Networking N3048EP-ON, 6.5.3.3, Linux 3.6.5-e3cd5a07, Not Available"
 !System Software Version 6.5.3.3
 !
 configure
-vlan {% for vlan in vlans -%} {{ vlan.id }}, {%- endfor %}
+vlan {% for vlan in vlans -%} {{ vlan.id }}{{ vlan.com }} {%- endfor %}
 exit
 {% for vlan in vlans -%}
  vlan {{ vlan.id }}
@@ -66,7 +19,7 @@ exit
   exit
 {% endfor -%}
 ip telnet server disable
-hostname {{ hostname }}
+hostname "{{ hostname }}"
 {%- for slot in range(switchcount) %}
 slot {{ slot + 1 }}/0 8    ! Dell EMC Networking N3048EP-ON
 {%- endfor %}
@@ -81,9 +34,9 @@ stack
 member {{ stack + 1 }} 6    ! N3048EP-ON
 {%- endfor %}
 exit
-ip domain-name {{ domain }}
+ip domain-name "{{ domain }}"
 {% for server in dns -%}
-ip name-server {{ server }}
+ip name-server "{{ server }}"
 {% endfor -%}
 !
 {%- for server in logging %}
@@ -100,7 +53,7 @@ interface vlan 252
     exit
 ip route 0.0.0.0 0.0.0.0 {{ defaultRoute }}
 {%- for user in users %}
-username {{ user.username }} password {{ user.password }} privilege 15 encrypted
+username {{ user.username }} password {{ user.password }} privilege 15
 {%- endfor %}
 aaa authentication login "{{ aaa.profile }}" {{ aaa.method1 }} {{ aaa.method2 }} enable
 aaa authentication enable "{{ aaa.profile }}" {{ aaa.method1 }} enable
@@ -135,33 +88,35 @@ application install hiveagent start-on-boot
 !
 {% for interface in interfaces -%}
 interface {{ interface.name }}
-desc {{ interface.desc }}
-{% if "trunk" in interface.mode -%}
+description  "{{ interface.desc }}"
+{% if "802.1Q" in interface.desc -%}
 switchport mode trunk
-{% if "Port-Channel" in interface.name -%}   
-switchport trunk allowed vlan {% for vlan in interface.tagged -%} {{ vlan }}, {%- endfor %}
+{% if "CHANNEL" in interface.desc -%}   
+switchport trunk allowed vlan {% for vlan in vlans -%} {{ vlan.id }}{{ vlan.com }} {%- endfor %}
 no spanning-tree auto-portfast
 no shutdown
 exit
 !
 {%- else -%}   
-channel-group {{ interface.lacp }} mode active
+channel-group 1 mode active
 exit
 !
 {% endif -%}
-{% elif "general" in interface.mode -%}
-no green-mode eee 
+{% elif "GENERAL" in interface.desc -%}
 switchport mode general
-{% if interface.dataVlan2 -%}
-switchport general pvid {{ interface.dataVlan2 }}
-switchport general allowed vlan add {{ interface.dataVlan2 }} untagged
-{% else -%}
+{% if  "DATA2" in interface.desc -%}
+no green-mode eee 
+switchport general pvid {{ dataVlan2 }}
+switchport general allowed vlan add {{ dataVlan2 }} untagged
+{% endif -%}
+{% if "DATA1" in interface.desc -%}
+no green-mode eee 
 switchport general pvid {{ dataVlan }}
 switchport general allowed vlan add {{ dataVlan }} untagged
 {% endif -%}
-{% if interface.voiceVlan2 -%}
-switchport general allowed vlan add {{ interface.voiceVlan2 }} tagged
-switchport voice vlan {{ interface.voiceVlan2 }}
+{% if "VOICE2" in interface.desc -%}
+switchport general allowed vlan add {{ voiceVlan2 }} tagged
+switchport voice vlan {{ voiceVlan2 }}
 switchport voice vlan priority extend trust
 switchport voice vlan dscp 46
 switchport voice vlan override-authentication
@@ -173,13 +128,8 @@ spanning-tree portfast
 no shutdown
 exit
 !
-{% elif "wireless" in interface.desc -%}
-switchport general allowed vlan add {% for vlan in interface.tagged -%} {{ vlan }}, {%- endfor %} tagged
-spanning-tree portfast
-no shutdown
-exit
-!
-{% else -%}
+{% endif -%}
+{% if "VOICE1" in interface.desc -%}
 switchport general allowed vlan add {{ voiceVlan }} tagged
 switchport voice vlan {{ voiceVlan }}
 switchport voice vlan priority extend trust
@@ -194,44 +144,56 @@ no shutdown
 exit
 !
 {% endif -%}
-{% elif "access" in interface.mode -%}
+{% if "WIRELESS" in interface.desc -%}
+switchport general pvid 777
+switchport general allowed vlan add 777 untagged
+switchport general allowed vlan add {% for vlan in interface.tagged -%} {{ vlan }} {%- endfor %} tagged
+spanning-tree portfast
+no shutdown
+exit
+!
+{% endif -%}
+{% elif "ACCESS" in interface.desc -%}
 switchport mode access
 no green-mode eee
-{% if interface.data -%}
+{% if "DATA2" in interface.desc -%}
+switchport access vlan {{ dataVlan2 }}
+spanning-tree portfast
+no shutdown
+exit
+!
+{% endif -%}
+{% if "DATA1" in interface.desc -%}
 switchport access vlan {{ dataVlan }}
 spanning-tree portfast
 no shutdown
 exit
 !
-{%- elif interface.voice -%}
+{% endif -%}
+{% if "VOICE2" in interface.desc -%}
+switchport access vlan {{ voiceVlan2 }}
+spanning-tree portfast
+no shutdown
+exit
+!
+{% endif -%}
+{% if "VOICE1" in interface.desc -%}
 switchport access vlan {{ voiceVlan }}
 spanning-tree portfast
 no shutdown
 exit
 !
-{%- elif interface.dataVlan2 -%}
-switchport access vlan {{ interface.dataVlan2 }}
-spanning-tree portfast
-no shutdown
-exit
-!
-{%- elif interface.voiceVlan2 -%}
-switchport access vlan {{ interface.voiceVlan2 }}
-spanning-tree portfast
-no shutdown
-exit
-!
-{%- endif %}
 {% endif -%}
-{% endfor -%}
+{% endif -%}
+{% endfor %}
 snmp-server engineid local 800002a20328f10ef05e00
 !
-snmp-server group "{{ snmp.group }}" v3 priv read
-snmp-server user "{{ snmp.user }}" {{ snmp.group }} auth-sha {{ snmp.auth }} prive-aes128 {{ snmp.priv }}
+snmp-server group "{{ snmp.group }}" v3 priv
+snmp-server user "{{ snmp.user }}" {{ snmp.group }} auth-sha {{ snmp.auth }} priv-aes128 {{ snmp.priv }}
 snmp-server community "SupportAssistSNMP" ro
-snmp-server community {{ snmp.ro }} ro
-snmp-server community {{ snmp.rw }} rw
-enable password {{ enablePass }} encrypted
+snmp-server community "{{ snmp.ro }}" ro
+snmp-server community "{{ snmp.rw }}" rw
+enable password {{ enablePass }}
 banner motd "
 **********************************************************
 *                                                        *
